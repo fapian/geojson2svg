@@ -3,6 +3,10 @@ geojson2svg is a package to draw svg's from geojson data. Under the hood it uses
 
 <img src="https://raw.githubusercontent.com/fapian/geojson2svg/master/test/example.svg?sanitize=true" alt="example image">
 
+## Installation
+
+    go get github.com/fapian/geojson2svg/pkg/geojson2svg
+
 ## Examples
 See the [tests](pkg/geojson2svg/geojson2svg_test.go) for usage examples.
 
