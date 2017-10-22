@@ -1,0 +1,19 @@
+language: go
+
+os:
+  - linux
+  - osx
+
+go:
+  - 1.x
+  - 1.9.x
+  - 1.8.x
+
+install: true
+
+before_script:
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+
+script:
+  go test $(go list ./... | grep -v /vendor/) -v
