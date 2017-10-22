@@ -572,6 +572,7 @@ func TestExample(t *testing.T) {
 	}
 
 	got := svg.Draw(1000, 510,
+		geojson2svg.WithAttribute("xmlns", "http://www.w3.org/2000/svg"),
 		geojson2svg.UseProperties([]string{"style"}),
 		geojson2svg.WithPadding(geojson2svg.Padding{
 			Top:    10,
