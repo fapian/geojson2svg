@@ -1,4 +1,7 @@
-# geojson2svg
+# geojson2svg 
+
+[![Build Status](https://travis-ci.org/fapian/geojson2svg.svg?branch=master)](https://travis-ci.org/fapian/geojson2svg)
+
 geojson2svg is a package to draw svg's from geojson data. Under the hood it uses https://github.com/paulmach/go.geojson to parse the geojson strings to Go structs.
 
 <img src="https://raw.githubusercontent.com/fapian/geojson2svg/master/test/example.svg?sanitize=true" alt="example image">
