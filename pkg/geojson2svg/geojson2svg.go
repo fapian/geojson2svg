@@ -77,7 +77,7 @@ func (svg *SVG) Draw(width, height float64, opts ...Option) string {
 	}
 
 	attributes := makeAttributes(svg.attributes)
-	return fmt.Sprintf(`<svg width="%f" height="%f"%s>%s</svg>`, width, height, attributes, content)
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%f" height="%f"%s>%s</svg>`, width, height, attributes, content)
 }
 
 // AddGeometry adds a geojson geometry to the svg.
