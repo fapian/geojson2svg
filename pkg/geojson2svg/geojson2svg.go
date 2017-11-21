@@ -269,13 +269,21 @@ func trim(s fmt.Stringer) string {
 
 func makeAttributes(as map[string]string) string {
 	keys := make([]string, 0, len(as))
+	namespaces := make(map[string]bool)
 	for k := range as {
 		keys = append(keys, k)
+		ns := strings.Split(k, ":")
+		if len(ns) == 2 {
+			namespaces[ns[0]] = true
+		}
 	}
 	sort.Strings(keys)
 	res := bytes.NewBufferString("")
 	for _, k := range keys {
 		fmt.Fprintf(res, ` %s="%s"`, k, as[k])
+	}
+	for ns, _ := range namespaces {
+	    fmt.Fprintf(res, ` xmlns:%s="x-urn:namespace:%s"`, ns, ns)
 	}
 	return res.String()
 }
