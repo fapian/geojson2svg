@@ -13,12 +13,13 @@ import (
 	"sort"
 	"strings"
 
-	geojson "github.com/paulmach/go.geojson"
+	"github.com/paulmach/go.geojson"
 )
 
 // TODO release
 
-type scaleFunc func(float64, float64) (float64, float64)
+// ScaleFunc accepts x,y coordinates and transforms them, returning a new pair of x,y coordinates.
+type ScaleFunc func(float64, float64) (float64, float64)
 
 // SVG represents the SVG that should be created.
 // Use the New function to create a SVG. New will handle the defaualt values.
@@ -55,11 +56,17 @@ func New() *SVG {
 // Draw renders the final SVG with the given options to a string.
 // All coordinates will be scaled to fit into the svg.
 func (svg *SVG) Draw(width, height float64, opts ...Option) string {
+	return svg.DrawWithProjection(width, height, func(x,y float64) (float64, float64){ return x,y}, opts...)
+}
+
+// DrawWithProjection renders the final SVG with the given options to a string.
+// All coordinates will be converted by the given projection, then scaled to fit into the svg.
+func (svg *SVG) DrawWithProjection(width, height float64, projection ScaleFunc, opts ...Option) string {
 	for _, o := range opts {
 		o(svg)
 	}
 
-	sf := makeScaleFunc(width, height, svg.padding, svg.points())
+	sf := makeScaleFunc(width, height, svg.padding, svg.points(), projection)
 
 	content := bytes.NewBufferString("")
 	for _, g := range svg.geometries {
@@ -181,7 +188,7 @@ func (svg *SVG) points() [][]float64 {
 	return ps
 }
 
-func process(sf scaleFunc, w io.Writer, g *geojson.Geometry, attributes string) {
+func process(sf ScaleFunc, w io.Writer, g *geojson.Geometry, attributes string) {
 	switch {
 	case g.IsPoint():
 		drawPoint(sf, w, g.Point, attributes)
@@ -232,18 +239,18 @@ func collect(g *geojson.Geometry) (ps [][]float64) {
 	return ps
 }
 
-func drawPoint(sf scaleFunc, w io.Writer, p []float64, attributes string) {
+func drawPoint(sf ScaleFunc, w io.Writer, p []float64, attributes string) {
 	x, y := sf(p[0], p[1])
 	fmt.Fprintf(w, `<circle cx="%f" cy="%f" r="1"%s/>`, x, y, attributes)
 }
 
-func drawMultiPoint(sf scaleFunc, w io.Writer, ps [][]float64, attributes string) {
+func drawMultiPoint(sf ScaleFunc, w io.Writer, ps [][]float64, attributes string) {
 	for _, p := range ps {
 		drawPoint(sf, w, p, attributes)
 	}
 }
 
-func drawLineString(sf scaleFunc, w io.Writer, ps [][]float64, attributes string) {
+func drawLineString(sf ScaleFunc, w io.Writer, ps [][]float64, attributes string) {
 	path := bytes.NewBufferString("M")
 	for _, p := range ps {
 		x, y := sf(p[0], p[1])
@@ -252,13 +259,13 @@ func drawLineString(sf scaleFunc, w io.Writer, ps [][]float64, attributes string
 	fmt.Fprintf(w, `<path d="%s"%s/>`, trim(path), attributes)
 }
 
-func drawMultiLineString(sf scaleFunc, w io.Writer, pps [][][]float64, attributes string) {
+func drawMultiLineString(sf ScaleFunc, w io.Writer, pps [][][]float64, attributes string) {
 	for _, ps := range pps {
 		drawLineString(sf, w, ps, attributes)
 	}
 }
 
-func drawPolygon(sf scaleFunc, w io.Writer, pps [][][]float64, attributes string) {
+func drawPolygon(sf ScaleFunc, w io.Writer, pps [][][]float64, attributes string) {
 	path := bytes.NewBufferString("")
 	for _, ps := range pps {
 		subPath := bytes.NewBufferString("M")
@@ -271,7 +278,7 @@ func drawPolygon(sf scaleFunc, w io.Writer, pps [][][]float64, attributes string
 	fmt.Fprintf(w, `<path d="%s Z"%s/>`, trim(path), attributes)
 }
 
-func drawMultiPolygon(sf scaleFunc, w io.Writer, ppps [][][][]float64, attributes string) {
+func drawMultiPolygon(sf ScaleFunc, w io.Writer, ppps [][][][]float64, attributes string) {
 	for _, pps := range ppps {
 		drawPolygon(sf, w, pps, attributes)
 	}
@@ -305,33 +312,66 @@ func makeAttributesFromProperties(useProp func(string) bool, props map[string]in
 	return makeAttributes(attrs)
 }
 
-func makeScaleFunc(width, height float64, padding Padding, ps [][]float64) scaleFunc {
+func makeScaleFunc(width, height float64, padding Padding, ps [][]float64, projection ScaleFunc) ScaleFunc {
 	w := width - padding.Left - padding.Right
-	h := width - padding.Top - padding.Bottom
+	h := height - padding.Top - padding.Bottom
 
 	if len(ps) == 0 {
-		return func(x, y float64) (float64, float64) { return x, y }
+		return func(x, y float64) (float64, float64) { return projection(x, y) }
 	}
 
 	if len(ps) == 1 {
 		return func(x, y float64) (float64, float64) { return w / 2, h / 2 }
 	}
 
-	minX := ps[0][0]
-	maxX := ps[0][0]
-	minY := ps[0][1]
-	maxY := ps[0][1]
-	for _, p := range ps[1:] {
-		minX = math.Min(minX, p[0])
-		maxX = math.Max(maxX, p[0])
-		minY = math.Min(minY, p[1])
-		maxY = math.Max(maxY, p[1])
-	}
+	minX, minY, maxX, maxY := getBoundingRectangle(projection, ps)
 	xRes := (maxX - minX) / w
 	yRes := (maxY - minY) / h
 	res := math.Max(xRes, yRes)
 
 	return func(x, y float64) (float64, float64) {
+		x, y = projection(x, y)
 		return (x-minX)/res + padding.Left, (maxY-y)/res + padding.Top
 	}
+
+}
+
+func getBoundingRectangle(projection ScaleFunc, ps [][]float64) (float64, float64, float64, float64) {
+	minX, minY := projection(ps[0][0], ps[0][1])
+	maxX, maxY := projection(ps[0][0], ps[0][1])
+	for _, p := range ps[1:] {
+		x, y := projection(p[0], p[1])
+		minX = math.Min(minX, x)
+		maxX = math.Max(maxX, x)
+		minY = math.Min(minY, y)
+		maxY = math.Max(maxY, y)
+	}
+	return minX, minY, maxX, maxY
+}
+
+// GetHeightForWidth returns an appropriate height given a desired width.
+func (svg *SVG) GetHeightForWidth(width float64, projection ScaleFunc) float64 {
+	minX, minY, maxX, maxY := getBoundingRectangle(projection, svg.points())
+	svgWidth := maxX - minX;
+	svgHeight := maxY - minY;
+	ratio := svgHeight / svgWidth;
+	return math.Floor((width * ratio) + .5)
+
+}
+
+// MercatorProjection is a projection function that will convert latitude & logitude into x,y coordinates for a Mercator map.
+var MercatorProjection = func(longitude, latitude float64) (float64, float64) {
+	// https://stackoverflow.com/questions/38270132/topojson-d3-map-with-longitude-latitude
+	mapWidth, mapHeight := 100.0, 100.0
+	// get x value
+	x := (longitude + 180) * (mapWidth / 360)
+
+	// convert from degrees to radians
+	latRad := latitude * math.Pi / 180
+
+	// get y value
+	mercN := math.Log(math.Tan((math.Pi / 4) + (latRad / 2)))
+	y := (mapHeight / 2) - (mapHeight * mercN / (2 * math.Pi))
+	// invert the y-axis to put the map the right way up
+	return x, mapHeight - y
 }
