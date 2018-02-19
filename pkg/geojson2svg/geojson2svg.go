@@ -86,8 +86,13 @@ func (svg *SVG) AddGeometry(gs string) error {
 	if err != nil {
 		return fmt.Errorf("invalid geometry: %s", gs)
 	}
-	svg.geometries = append(svg.geometries, g)
+	svg.AppendGeometry(g)
 	return nil
+}
+
+// AppendGeometry adds a geojson Geometry to the svg.
+func (svg *SVG) AppendGeometry(f *geojson.Geometry) {
+	svg.geometries = append(svg.geometries, f)
 }
 
 // AddFeature adds a geojson feature to the svg.
@@ -96,8 +101,13 @@ func (svg *SVG) AddFeature(fs string) error {
 	if err != nil {
 		return fmt.Errorf("invalid feature: %s", fs)
 	}
-	svg.features = append(svg.features, f)
+	svg.AppendFeature(f)
 	return nil
+}
+
+// AppendFeature adds a geojson Feature to the svg.
+func (svg *SVG) AppendFeature(f *geojson.Feature) {
+	svg.features = append(svg.features, f)
 }
 
 // AddFeatureCollection adds a geojson featurecollection to the svg.
@@ -106,8 +116,13 @@ func (svg *SVG) AddFeatureCollection(fcs string) error {
 	if err != nil {
 		return fmt.Errorf("invalid feature collection: %s", fcs)
 	}
-	svg.featureCollections = append(svg.featureCollections, fc)
+	svg.AppendFeatureCollection(fc)
 	return nil
+}
+
+// AppendFeatureCollection adds a geojson FeatureCollection to the svg.
+func (svg *SVG) AppendFeatureCollection(fc *geojson.FeatureCollection) {
+	svg.featureCollections = append(svg.featureCollections, fc)
 }
 
 // WithAttribute adds the key value pair as attribute to the
