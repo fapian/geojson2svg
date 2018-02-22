@@ -608,7 +608,7 @@ func TestUkEire(t *testing.T) {
 	height := svg.GetHeightForWidth(width, geojson2svg.MercatorProjection)
 
 	if (height != 1281.0) {
-		t.Errorf("expected %d, got %d", 1281, height)
+		t.Errorf("expected %f, got %f", 1281.0, height)
 	}
 
 	got := svg.DrawWithProjection(width, height, geojson2svg.MercatorProjection,
