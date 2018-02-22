@@ -584,3 +584,44 @@ func TestExample(t *testing.T) {
 		t.Errorf("expected %s, got %s", string(want), got)
 	}
 }
+
+func TestUkEire(t *testing.T) {
+	exampleFile := path.Join("..", "..", "test", "UK_Eire.json")
+	geojson, err := ioutil.ReadFile(exampleFile)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	svgFile := path.Join("..", "..", "test", "UK_Eire.svg")
+	want, err := ioutil.ReadFile(svgFile)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	svg := geojson2svg.New()
+	err = svg.AddFeatureCollection(string(geojson))
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	width := 1000.0
+	height := svg.GetHeightForWidth(width, geojson2svg.MercatorProjection)
+
+	if (height != 1281.0) {
+		t.Errorf("expected %d, got %d", 1281, height)
+	}
+
+	got := svg.DrawWithProjection(width, height, geojson2svg.MercatorProjection,
+		geojson2svg.WithAttribute("xmlns", "http://www.w3.org/2000/svg"),
+		geojson2svg.UseProperties([]string{"style"}),
+		geojson2svg.WithPadding(geojson2svg.Padding{
+			Top:    10,
+			Right:  10,
+			Bottom: 10,
+			Left:   10,
+		}))
+
+	if got != string(want) {
+		t.Errorf("expected %s, got %s", string(want), got)
+	}
+}
